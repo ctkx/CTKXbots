@@ -1,0 +1,15 @@
+version: '3'
+services:
+  ctkxbot:
+    container_name: ctkxbot
+    build:
+      context: ./bot
+    restart: always
+    volumes:
+      - ./bot:/bot
+      - type: bind
+        source: ./bot_functions
+        target: /bot_functions
+      - type: bind
+        source: ./bot_cogs
+        target: /bot_cogs
