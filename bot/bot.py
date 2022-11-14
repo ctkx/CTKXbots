@@ -10,12 +10,13 @@ from keys_and_codes import discord_token
 
 activity = nextcord.Activity(type=nextcord.ActivityType.listening, name="Waiting for commands")
 
-client = commands.Bot(command_prefix = '/',activity=activity, status=nextcord.Status.idle,help_command=None)
+client = commands.Bot(command_prefix = '/',activity=activity, status=nextcord.Status.idle,help_command=None,intents = nextcord.Intents.all())
 
 cog_dir = '/bot_cogs'
 
 bot_cogs=[
     'cog_ping',
+    'cog_admin',
 ]
 
 for filename in os.listdir(cog_dir):

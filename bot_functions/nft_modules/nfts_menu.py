@@ -15,13 +15,7 @@ from google import sheets
 # # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 # #                                      Functions                                                *
 # # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-# def change_summary(change):
-#     if change['type'] == 'create_nft_pool':
-#         return(f"Create NFT Pool: {change['nft_pool_input']}")
-#     if change['type'] == 'edit_nft_pool':
-#         return(f"Edit NFT Pool: {change['edit_pool_name']} to {change['nft_pool_input']}")
-#     if change['type'] == 'delete_nft_pool':
-#         return(f"Delete NFT Pool: {change['edit_pool_name']}")
+
 def get_random_word():
     response = requests.get('https://random-word-api.herokuapp.com/word')
     return response.json()[0]

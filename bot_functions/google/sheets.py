@@ -3,8 +3,7 @@ from gspread_formatting import *
 import time
 import sys
 if "/bot_functions" not in sys.path:
-    # sys.path.append("/bot_functions")
-    sys.path.append("bot_functions")
+    sys.path.append("/bot_functions")
 from keys_and_codes import gcreds
 
 class Cell:
