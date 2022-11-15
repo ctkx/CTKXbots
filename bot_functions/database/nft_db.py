@@ -24,7 +24,7 @@ def get_pool_nfts(guild_id,pool_id): # was get_nft_pool
     unique_nfts  = 0
     for nft in nft_list:
         unique_nfts += 1
-        nft_quantity += int(nft['nft_quantity'])
+        nft_quantity += int(nft['quantity'])
     return nft_list,nft_quantity,unique_nfts
 
 def add_bulk_import_sheet(guild_id,import_code,sheet_url):
@@ -32,3 +32,12 @@ def add_bulk_import_sheet(guild_id,import_code,sheet_url):
 
 def get_bulk_import_sheets(guild_id):
     return database.get('ctkxbotdb_nft','bulk_import_sheets',conditions={'guild_id':guild_id})
+
+def add_nfts_to_pool(guild_id,pool_id,nft_dict):
+    nft_list = []
+    for name,nft in nft_dict.items():
+        print(nft)
+        nft['guild_id'] = guild_id
+        nft['pool_id']  = pool_id
+        nft_list.append(nft)
+    database.store('ctkxbotdb_nft','guild_nfts',nft_list)

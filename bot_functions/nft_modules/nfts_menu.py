@@ -24,7 +24,7 @@ def create_new_bulk_import_sheet(pool_name):
     import_code=get_random_word()
     spreadsheet_name=f"CTKXBot Bulk NFT Import {import_code}"
     url,worksheet=sheets.create_spreadsheet(spreadsheet_name)
-    url,worksheet=sheets.deploy_template('bulk_nft_import',url,{'import_code':import_code,'pool_name':pool_name})
+    url,worksheet=sheets.deploy_template('bulk_nft_import',url,import_code)
     return import_code,url
 
 def validate_nft(nft):
@@ -110,8 +110,8 @@ class nft_input_again_or_finish_view(nextcord.ui.View):
         await interaction.response.edit_message(embed=em, view=bulk_import_view(self.client,self.intx_data))
 
     @nextcord.ui.button(label='Save NFTs', style=nextcord.ButtonStyle.green)
-    async def back(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
-        pass
+    async def save_nfts(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
+        outcome,output=nft_db.add_nfts_to_pool(self.intx_data['intx'].guild.id,self.intx_data['target_nft_pool']['id'],self.intx_data['input_nfts'])
 
     @nextcord.ui.button(label='Back', style=nextcord.ButtonStyle.grey)
     async def back(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
@@ -235,7 +235,7 @@ class add_nft_modal(nextcord.ui.Modal):
 
     async def callback(self, interaction: nextcord.Interaction) -> None:
         nft={}
-        nft['name'] = self.nft_name.value
+        nft['nft_name'] = self.nft_name.value
         nft['nft_id'] = self.nft_id.value
         nft['minter_address'] = self.minter_address.value
         nft['token_address'] = self.token_address.value
@@ -257,22 +257,22 @@ class add_nft_modal(nextcord.ui.Modal):
 
         table_values.append(table_row)
 
-        self.intx_data['em'].add_field(name=f"Last NFT: {nft['name']}",value=f"```\n{tabulate(table_values,headers=table_columns,tablefmt='plain')}```",inline=False)
+        self.intx_data['em'].add_field(name=f"Last NFT: {nft['nft_name']}",value=f"```\n{tabulate(table_values,headers=table_columns,tablefmt='plain')}```",inline=False)
 
         if nft['quantity'].isdecimal():
             validation_output = validate_nft(nft)
         else:
             validation_output = 'Failed! Quantity must be a number'
-            self.intx_data['last_nft_name_input']=nft['name']
+            self.intx_data['last_nft_name_input']=nft['nft_name']
             self.intx_data['last_quantity_input']=nft['quantity']
             self.intx_data['last_nft_id_input']=nft['nft_id']
             self.intx_data['last_token_address_input']=nft['token_address']
         if 'input_nfts' not in self.intx_data:
             self.intx_data['input_nfts']={}
         if validation_output == "Passed":
-            self.intx_data['input_nfts'][nft['name']]={}
+            self.intx_data['input_nfts'][nft['nft_name']]={}
             for field in nft_fields:
-                self.intx_data['input_nfts'][nft['name']][field] = nft[field]
+                self.intx_data['input_nfts'][nft['nft_name']][field] = nft[field]
         else:
             self.intx_data['em'].add_field(name=validation_output,value=f"** **",inline=False)
 
@@ -318,10 +318,10 @@ class import_nfts_from_code_input(nextcord.ui.Modal):
         if 'input_nfts' not in self.intx_data:
             self.intx_data['input_nfts']={}
         for nft in nft_list:
-            self.intx_data['input_nfts'][nft['name']]=nft
+            self.intx_data['input_nfts'][nft['nft_name']]=nft
             unique_nft_count+=1
             nft_quantity+=int(nft['quantity'])
-            table_values.append([nft['quantity'],nft['name']])
+            table_values.append([nft['quantity'],nft['nft_name']])
         test_table=tabulate(table_values,headers=['Quantity','Name'],tablefmt='plain')
         print(test_table)
         if len(test_table) > 1024:

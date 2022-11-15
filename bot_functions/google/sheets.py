@@ -45,7 +45,7 @@ def load_spreadsheet_as_dict_list(spreadsheet_url,worksheet_name='Master',header
         dicts.append(row_dict)
     return dicts
 
-def deploy_template(template_type,sheet_url,data):
+def deploy_template(template_type,sheet_url,deploy_template):
     if 'bulk_nft_import' == template_type.lower():
         template_url = 'https://docs.google.com/spreadsheets/d/1rssbmGATl7BtucazEFOK4iVRANshTE9bbMI80eaLkdQ'
     elif 'nft' in template_type.lower():
@@ -61,6 +61,5 @@ def deploy_template(template_type,sheet_url,data):
     worksheet.update_title('Master')
     if 'bulk_nft_import' == template_type.lower():
         update_cell_list=[]
-        update_cell_list.append(Cell(1,  2, data['pool_name']))
-        update_cell_list.append(Cell(1,  4, data['import_code']))
+        update_cell_list.append(Cell(1,  4, deploy_template))
     return sh.url,worksheet
