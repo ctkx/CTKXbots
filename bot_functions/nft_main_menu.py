@@ -37,13 +37,12 @@ class entrypoint_view(nextcord.ui.View):
 
     @nextcord.ui.button(label='NFTs', style=nextcord.ButtonStyle.blurple)
     async def nfts(self, button: nextcord.ui.Button, interaction: nextcord.Interaction): 
-        print(f"{len(self.intx_data['nft_pools'])} NFT pools found")
         if len(self.intx_data['nft_pools']) == 0: # If there are no nft pools, then we can't add nfts
             em = template_embed(self.intx_data)
             em.add_field(name="No NFT Pools Found!", value="Please create an NFT Pool first.", inline=False)
             await interaction.response.edit_message(embed=em, view=entrypoint_view(self.client,self.intx_data))
             return
-        self.intx_data['next_view']=nfts_menu.entrypoint_view(self.client,self.intx_data)
+        self.intx_data['next_view']='nfts_menu'
         self.intx_data['intx']=interaction
         await nft_pools_menu.nft_pool_search_or_select(self.client,self.intx_data)
     @nextcord.ui.button(label='NFT Pools', style=nextcord.ButtonStyle.blurple)

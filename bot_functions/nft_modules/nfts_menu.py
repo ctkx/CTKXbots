@@ -20,7 +20,7 @@ def get_random_word():
     response = requests.get('https://random-word-api.herokuapp.com/word')
     return response.json()[0]
 
-def create_new_bulk_import_sheet(pool_name):
+def create_new_bulk_import_sheet(nft_name):
     import_code=get_random_word()
     spreadsheet_name=f"CTKXBot Bulk NFT Import {import_code}"
     url,worksheet=sheets.create_spreadsheet(spreadsheet_name)
@@ -58,8 +58,10 @@ def template_embed(intx_data,pool_stats=True):
     if pool_stats:
         pools_table_rows=[]
         intx_data['target_nft_pool']['nft_list'],intx_data['target_nft_pool']['nft_quantity'],intx_data['target_nft_pool']['unique_nfts'] = nft_db.get_pool_nfts(intx_data['intx'].guild.id,intx_data['target_nft_pool']['id'])
-        pools_table_rows.append([intx_data['target_nft_pool']['name'],intx_data['target_nft_pool']['unique_nfts'],intx_data['target_nft_pool']['nft_quantity']])
-        em.add_field(name="Target Pool", value=f"```\n{tabulate(pools_table_rows,headers=['Pool Name','Unique NFTs','Quantity'],tablefmt='simple')}```",inline=False)
+        em.add_field(name="Target Pool",value=f"```\n{intx_data['target_nft_pool']['name']}```",inline=True)
+        em.add_field(name="NFT Count",value=f"```\n{intx_data['target_nft_pool']['unique_nfts']}```",inline=True)
+        em.add_field(name="Total Quantity",value=f"```\n{intx_data['target_nft_pool']['nft_quantity']}```",inline=True)
+
 
     if 'embed_footer' in intx_data:
         embed_footer_text=intx_data['embed_footer']
@@ -88,9 +90,94 @@ class entrypoint_view(nextcord.ui.View):
         em=template_embed(self.intx_data)
         await interaction.response.edit_message(embed=em, view=nft_input_again_or_finish_view(self.client,self.intx_data))
 
+    @nextcord.ui.button(label='Edit NFT', style=nextcord.ButtonStyle.grey)
+    async def edit(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
+        self.intx_data['intx']=interaction
+        self.intx_data['change'] = {
+            'type': 'edit_nft',
+        }
+        em=template_embed(self.intx_data)
+        # get nfts in pool
+        self.intx_data['target_nft_pool']['nft_list'],self.intx_data['target_nft_pool']['nft_quantity'],self.intx_data['target_nft_pool']['unique_nfts'] = nft_db.get_pool_nfts(self.intx_data['intx'].guild.id,self.intx_data['target_nft_pool']['id'])
+
+        if len(self.intx_data['nft_pools']) == 0: # If there are no nfts
+            em.add_field(name="No NFTs Found!", value="Please add some NFTs first.", inline=False)
+            await self.intx_data['intx'].response.edit_message(embed=em, view=entrypoint_view(self.client,self.intx_data))
+            return
+        elif 1<= len(self.intx_data['target_nft_pool']['nft_list']) <= 25: # Select Pool
+            em.add_field(name="Select an NFT", value="** **", inline=False)
+            await self.intx_data['intx'].response.edit_message(embed=em, view=pool_nft_dropdown(self.client,self.intx_data)) 
+            return
+        elif len(self.intx_data['target_nft_pool']['nft_list']) > 25:
+            # Maximum elements in a select menu is 25, send nft_name modal and search
+            await self.intx_data['intx'].response.send_modal(nft_name_search_modal(self.client,self.intx_data))
+            return
+        
+    @nextcord.ui.button(label='Delete NFT', style=nextcord.ButtonStyle.grey)
+    async def delete(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
+        self.intx_data['change'] = {
+            'type': 'delete_nft',
+        }
+        self.intx_data['intx']=interaction
+        em=template_embed(self.intx_data)
+        # get nfts in pool
+        self.intx_data['target_nft_pool']['nft_list'],self.intx_data['target_nft_pool']['nft_quantity'],self.intx_data['target_nft_pool']['unique_nfts'] = nft_db.get_pool_nfts(self.intx_data['intx'].guild.id,self.intx_data['target_nft_pool']['id'])
+
+        if len(self.intx_data['nft_pools']) == 0: # If there are no nfts
+            em.add_field(name="No NFTs Found!", value="Please add some NFTs first.", inline=False)
+            await self.intx_data['intx'].response.edit_message(embed=em, view=entrypoint_view(self.client,self.intx_data))
+            return
+        elif 1<= len(self.intx_data['target_nft_pool']['nft_list']) <= 25: # Select Pool
+            em.add_field(name="Select an NFT", value="** **", inline=False)
+            await self.intx_data['intx'].response.edit_message(embed=em, view=pool_nft_dropdown(self.client,self.intx_data)) 
+            return
+        elif len(self.intx_data['target_nft_pool']['nft_list']) > 25:
+            # Maximum elements in a select menu is 25, send nft_name modal and search
+            await self.intx_data['intx'].response.send_modal(nft_name_search_modal(self.client,self.intx_data))
+            return
+
     @nextcord.ui.button(label='Back', style=nextcord.ButtonStyle.grey)
     async def back(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
         em = nft_main_menu.template_embed(self.intx_data)
+        await interaction.response.edit_message(embed=em, view=nft_main_menu.entrypoint_view(self.client,self.intx_data))
+
+class nft_edit_confirm_view(nextcord.ui.View):
+
+    def __init__(self,client,intx_data):
+        self.intx_data = intx_data
+        self.client = client
+        super().__init__() 
+
+
+    @nextcord.ui.button(label='Save', style=nextcord.ButtonStyle.green)
+    async def confirm(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
+        success,output=False,None
+        if 'change' not in self.intx_data:
+            output="No change requested!"
+
+        elif self.intx_data['change']['type'] == 'edit_nft':
+            success,output = nft_db.edit_pool_nft(self.intx_data['intx'].guild.id,self.intx_data['change']['nft'])
+            if success:
+                output=f"NFT Edit Saved!"
+        elif self.intx_data['change']['type'] == 'delete_nft':
+            success,output = nft_db.delete_pool_nft(self.intx_data['intx'].guild.id,self.intx_data['change']['nft'])
+            if success:
+                output=f"NFT Deleted!"
+
+
+        if success:
+            emoji='✅'
+        else:
+            emoji='❌'
+        self.intx_data['change']=None
+        em=template_embed(self.intx_data)
+        em.add_field(name="Change Outcome", value=f"{emoji} {output}", inline=False)
+        await interaction.response.edit_message(embed=em, view=entrypoint_view(self.client,self.intx_data))
+
+    @nextcord.ui.button(label='Cancel', style=nextcord.ButtonStyle.red)
+    async def cancel(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
+        em = nft_main_menu.template_embed(self.intx_data)
+        self.intx_data['change'] = None
         await interaction.response.edit_message(embed=em, view=nft_main_menu.entrypoint_view(self.client,self.intx_data))
 
 class nft_input_again_or_finish_view(nextcord.ui.View):
@@ -111,8 +198,20 @@ class nft_input_again_or_finish_view(nextcord.ui.View):
 
     @nextcord.ui.button(label='Save NFTs', style=nextcord.ButtonStyle.green)
     async def save_nfts(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
-        outcome,output=nft_db.add_nfts_to_pool(self.intx_data['intx'].guild.id,self.intx_data['target_nft_pool']['id'],self.intx_data['input_nfts'])
-
+        if self.intx_data['change']['type'] == 'add_nft':
+            success,output=nft_db.add_nfts_to_pool(self.intx_data['intx'].guild.id,self.intx_data['target_nft_pool']['id'],self.intx_data['input_nfts'])
+            if success:
+                output=f"{len(self.intx_data['input_nfts'])} NFTs added to {self.intx_data['target_nft_pool']['name']}!"
+                
+        if success:
+            emoji='✅'
+        else:
+            emoji='❌'
+        self.intx_data['change']=None
+        em=template_embed(self.intx_data)
+        em.add_field(name="Save NFTs", value=f"{emoji} {output}", inline=False)
+        await interaction.response.edit_message(embed=em, view=nft_main_menu.entrypoint_view(self.client,self.intx_data))
+        
     @nextcord.ui.button(label='Back', style=nextcord.ButtonStyle.grey)
     async def back(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
         em = nft_main_menu.template_embed(self.intx_data)
@@ -131,7 +230,7 @@ class bulk_import_view(nextcord.ui.View):
         self.intx_data['em'] = nextcord.Embed(title=self.intx_data['title'],description=self.intx_data['descr'],color=nextcord.Colour.random())
         await interaction.response.defer(ephemeral=False, with_message=False) 
 
-        import_code,sheet_url=create_new_bulk_import_sheet(pool_name=self.intx_data['target_nft_pool']['name'])
+        import_code,sheet_url=create_new_bulk_import_sheet(nft_name=self.intx_data['target_nft_pool']['name'])
         nft_db.add_bulk_import_sheet(self.intx_data['intx'].guild.id,import_code,sheet_url)
 
         await interaction.channel.send(sheet_url)#,delete_after=10)
@@ -150,86 +249,152 @@ class bulk_import_view(nextcord.ui.View):
         self.intx_data['em'] = template_embed(self.intx_data)
         await interaction.response.edit_message(embed=self.intx_data['em'], view=nft_input_again_or_finish_view(self.client,self.intx_data))
 
+class pool_nft_dropdown_select(nextcord.ui.Select):
+    def __init__(self,client,intx_data):
+        self.intx_data = intx_data
+        self.client = client
+
+        options = []
+
+        if 'nft_name_search_results' in self.intx_data:
+            nft_list = self.intx_data['nft_name_search_results']
+        else:
+            nft_list = self.intx_data['target_nft_pool']['nft_list']
+
+        for nft in nft_list:
+            options.append(nextcord.SelectOption(label=nft['nft_name'], description=f"", emoji=None),)
+
+        super().__init__(placeholder='Select an NFT ...', min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: nextcord.Interaction):
+        em = template_embed(self.intx_data)
+        nft_name = self.values[0]
+
+        for nft in self.intx_data['target_nft_pool']['nft_list']:
+            if nft_name == nft['nft_name']:
+                self.intx_data['change']['nft'] = nft
+                break
+        if self.intx_data['change']['type'] == 'edit_nft':
+            await interaction.response.send_modal(add_nft_modal(self.client,self.intx_data))
+        elif self.intx_data['change']['type'] == 'delete_nft':
+            await interaction.response.edit_message(embed=self.intx_data['em'], view=nft_edit_confirm_view(self.client,self.intx_data))
+            
+
+# Define a simple View that gives us a counter button
+class pool_nft_dropdown(nextcord.ui.View):
+    # Discord disabled selects in modals, we'll use a view for now TODO
+    def __init__(self,client,intx_data):
+        self.intx_data = intx_data
+        self.client = client
+        super().__init__()
+        self.add_item(pool_nft_dropdown_select(self.client,intx_data))
+
+    @nextcord.ui.button(label='Back', style=nextcord.ButtonStyle.grey)
+    async def cancel(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
+        em = template_embed(self.intx_data)
+        await interaction.response.edit_message(embed=em, view=nft_main_menu.entrypoint_view(self.client,self.intx_data))
+
+
 # # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 # #                                      Modals                                                   *
 # # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 
+class nft_name_search_modal(nextcord.ui.Modal):
+    def __init__(self,client,intx_data):
+        self.intx_data = intx_data
+        self.client = client
+
+        super().__init__(
+            "NFT Search",
+            timeout=5 * 60,  # 5 minutes
+        )
+
+        self.nft_name_input = nextcord.ui.TextInput(
+            label="Name",
+            min_length=2,
+            max_length=50,
+        )
+        self.add_item(self.nft_name_input)
+
+    async def callback(self, interaction: nextcord.Interaction) -> None:
+        em = template_embed(self.intx_data,)
+
+        self.intx_data['nft_name_search_results'] = []
+        search_string = self.nft_name_input.value.lower().replace(' ','')
+        for nft in self.intx_data['target_nft_pool']['nft_list']:
+            print(nft)
+            if search_string in nft['nft_name'].lower().replace(' ',''):
+                self.intx_data['nft_name_search_results'].append(nft)
+        if len(self.intx_data['nft_name_search_results']) == 0:
+            em.add_field(name=f"No NFTs found!", value=f"Searched: {self.nft_pool.value}", inline=False)
+            em = template_embed(self.intx_data)
+            await interaction.response.edit_message(embed=em, view=entrypoint_view(self.client,self.intx_data))
+            return
+        em.add_field(name="Select an NFT", value="** **", inline=False)
+        await interaction.response.edit_message(embed=em, view=pool_nft_dropdown(self.client,self.intx_data)) 
+        return
+
 class add_nft_modal(nextcord.ui.Modal):
     def __init__(self,client,intx_data):
         self.intx_data = intx_data
         self.client = client
+        self.edit = False
+
+        if 'change' in self.intx_data and self.intx_data['change']['type'] == 'edit_nft':
+            self.nft_name_default_input       = self.intx_data['change']['nft']['nft_name']
+            self.nft_id_default_input         = self.intx_data['change']['nft']['nft_id']
+            self.minter_address_default_input = self.intx_data['change']['nft']['minter_address']
+            self.token_address_default_input  = self.intx_data['change']['nft']['token_address']
+            self.quantity_default_input       = self.intx_data['change']['nft']['quantity']
+            self.edit=True
+        else:
+            self.nft_name_default_input=''
+            self.nft_id_default_input=''
+            self.minter_address_default_input=''
+            self.token_address_default_input=''
+            self.quantity_default_input=''
         super().__init__(
             "Add NFT",
             timeout=5 * 60,  # 5 minutes
         )
-
-        if 'last_nft_name_input' in self.intx_data:
-            nft_name_default_input=self.intx_data['last_nft_name_input']
-            self.intx_data['last_nft_name_input']=''
-        else:
-            nft_name_default_input=''
-
         self.nft_name = nextcord.ui.TextInput(
             label="NFT Name",
             required=True,
             max_length=256,
-            default_value=nft_name_default_input
+            default_value=self.nft_name_default_input
         )
         self.add_item(self.nft_name)
-
-        if 'last_nft_id_input' in self.intx_data:
-            nft_id_default_input=self.intx_data['last_nft_id_input']
-            self.intx_data['last_nft_id_input']=''
-        else:
-            nft_id_default_input=''
 
         self.nft_id = nextcord.ui.TextInput(
             label="NFT ID",
             required=True,
             max_length=256,
-            default_value=nft_id_default_input
+            default_value=self.nft_id_default_input
         )
         self.add_item(self.nft_id)
 
-        if 'last_minter_address_input' in self.intx_data:
-            minter_address_default_input=self.intx_data['last_minter_address_input']
-        else:
-            minter_address_default_input=''
-            
         self.minter_address = nextcord.ui.TextInput(
             label="Minter Address",
             required=True,
             max_length=256,
-            default_value=minter_address_default_input
+            default_value=self.minter_address_default_input
         )
         self.add_item(self.minter_address)
 
-        if 'last_token_address_input' in self.intx_data:
-            token_address_default_input=self.intx_data['last_token_address_input']
-            self.intx_data['last_token_address_input']=''
-        else:
-            token_address_default_input=''
-            
         self.token_address = nextcord.ui.TextInput(
             label="Token Address",
             required=True,
             max_length=256,
-            default_value=token_address_default_input
+            default_value=self.token_address_default_input
         )
         self.add_item(self.token_address)
 
-        if 'last_quantity_input' in self.intx_data:
-            quantity_default_input=self.intx_data['last_quantity_input']
-            self.intx_data['last_quantity_input']=''
-        else:
-            quantity_default_input=''
-            
         self.quantity = nextcord.ui.TextInput(
             label="Quantity",
             required=True,
             max_length=256,
-            default_value=quantity_default_input
+            default_value=self.quantity_default_input
         )
         self.add_item(self.quantity)
 
@@ -242,23 +407,27 @@ class add_nft_modal(nextcord.ui.Modal):
         nft['quantity'] = self.quantity.value
         self.intx_data['last_minter_address_input']=nft['minter_address']
         self.intx_data['em'] = nextcord.Embed(title=self.intx_data['title'],description=self.intx_data['descr'],color=nextcord.Colour.random())
-
-        table_values=[]
-        table_columns=[]
-        table_row=[]
-
-        nft_fields=['nft_id','minter_address','token_address','quantity']
-        for field in nft_fields:
-            field_name=field.replace('_',' ').title()
-            if field_name not in table_columns:
-                table_columns.append(field_name)
-
-            table_row.append(nft[field])
-
-        table_values.append(table_row)
-
-        self.intx_data['em'].add_field(name=f"Last NFT: {nft['nft_name']}",value=f"```\n{tabulate(table_values,headers=table_columns,tablefmt='plain')}```",inline=False)
-
+        if self.edit:
+            changes = []
+            if self.nft_name_default_input != nft['nft_name']:
+                changes.append(f"Name: {self.nft_name_default_input} -> {nft['nft_name']}")
+            if self.nft_id_default_input != nft['nft_id']:
+                changes.append(f"ID: {self.nft_id_default_input} -> {nft['nft_id']}")
+            if self.minter_address_default_input != nft['minter_address']:
+                changes.append(f"Minter Address: {self.minter_address_default_input} -> {nft['minter_address']}")
+            if self.token_address_default_input != nft['token_address']:
+                changes.append(f"Token Address: {self.token_address_default_input} -> {nft['token_address']}")
+            if self.quantity_default_input != nft['quantity']:
+                changes.append(f"Quantity: {self.quantity_default_input} -> {nft['quantity']}")
+            changes = '\n'.join(changes)
+            self.intx_data['em'].add_field(name=f"Edit NFT: {self.nft_name_default_input}",value=f"```\n{changes}```",inline=False)
+        else:
+            self.intx_data['em'].add_field(name="Last NFT Input",value=f"```\n" + \
+                                    f"Name           : {nft['nft_name']}\n" + \
+                                    f"NFT ID         : {nft['nft_id']}\n" + \
+                                    f"Minter Address : {nft['minter_address']}\n" + \
+                                    f"Token Address  : {nft['token_address']}\n" + \
+                                    f"Quantity       : {nft['quantity']}\n```",inline=False)
         if nft['quantity'].isdecimal():
             validation_output = validate_nft(nft)
         else:
@@ -267,23 +436,35 @@ class add_nft_modal(nextcord.ui.Modal):
             self.intx_data['last_quantity_input']=nft['quantity']
             self.intx_data['last_nft_id_input']=nft['nft_id']
             self.intx_data['last_token_address_input']=nft['token_address']
+
         if 'input_nfts' not in self.intx_data:
-            self.intx_data['input_nfts']={}
+            self.intx_data['input_nfts']=[]
         if validation_output == "Passed":
-            self.intx_data['input_nfts'][nft['nft_name']]={}
-            for field in nft_fields:
-                self.intx_data['input_nfts'][nft['nft_name']][field] = nft[field]
+            if self.edit:
+                for key,val in nft.items():
+                    self.intx_data['change']['nft'][key]=val
+            else:
+                self.intx_data['input_nfts'].append(nft)
         else:
             self.intx_data['em'].add_field(name=validation_output,value=f"** **",inline=False)
 
+        if self.edit:
+            await interaction.response.edit_message(embed=self.intx_data['em'], view=nft_edit_confirm_view(self.client,self.intx_data))
+            return
+        
+        unique_nft_count=0
+        nft_quantity=0
         table_values=[]
-        if len(self.intx_data['input_nfts']) > 0:
-            table_columns=['Quantity','Name']
-            input_nft_list_string=''
-            for existing_nft_name,existing_nft in self.intx_data['input_nfts'].items():
-                table_values.append([existing_nft['quantity'],existing_nft_name])
-            self.intx_data['em'].add_field(name=f"Input NFTs",value=f"```\n{tabulate(table_values,headers=table_columns,tablefmt='plain')}```",inline=False)
-
+        table=None
+        for nft in self.intx_data['input_nfts']:
+            print(nft)
+            unique_nft_count+=1
+            nft_quantity+=int(nft['quantity'])
+            table_values.append([nft['quantity'],nft['nft_name']])
+            table=tabulate(table_values,headers=['Quantity','Name'],tablefmt='plain')
+        if len(table) > 1016:
+            table=f"Too many NFTs to display!\n\n{unique_nft_count} unique NFTs\n{nft_quantity} total NFTs"
+        self.intx_data['em'].add_field(name=f"Input NFTs",value=f"```\n{table}```",inline=False)
         await interaction.response.edit_message(embed=self.intx_data['em'], view=nft_input_again_or_finish_view(self.client,self.intx_data))
 
 class import_nfts_from_code_input(nextcord.ui.Modal):
@@ -316,9 +497,9 @@ class import_nfts_from_code_input(nextcord.ui.Modal):
         unique_nft_count=0
         nft_quantity=0
         if 'input_nfts' not in self.intx_data:
-            self.intx_data['input_nfts']={}
+            self.intx_data['input_nfts']=[]
         for nft in nft_list:
-            self.intx_data['input_nfts'][nft['nft_name']]=nft
+            self.intx_data['input_nfts'].append(nft)
             unique_nft_count+=1
             nft_quantity+=int(nft['quantity'])
             table_values.append([nft['quantity'],nft['nft_name']])

@@ -7,6 +7,7 @@ if "/bot_functions" not in sys.path:
     
 from keys_and_codes import default_embed_footer
 import nft_main_menu
+from nft_modules import nfts_menu
 from database import nft_db
 
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -14,11 +15,11 @@ from database import nft_db
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 def change_summary(change):
     if change['type'] == 'create_nft_pool':
-        return(f"Create NFT Pool: {change['nft_pool_input']}")
+        return(f"Create NFT Pool: ```\n{change['nft_pool_input']}```")
     if change['type'] == 'edit_nft_pool':
-        return(f"Edit NFT Pool: {change['edit_pool_name']} to {change['nft_pool_input']}")
+        return(f"Edit NFT Pool: ```\n{change['edit_pool_name']} -> {change['nft_pool_input']}```")
     if change['type'] == 'delete_nft_pool':
-        return(f"Delete NFT Pool: {change['edit_pool_name']}")
+        return(f"Delete NFT Pool: ```\n{change['edit_pool_name']}```")
 
 def template_embed(intx_data,pool_stats=True):
     if 'nft_pools' not in intx_data:
@@ -141,12 +142,14 @@ class nft_pool_dropdown_select(nextcord.ui.Select):
             await interaction.response.edit_message(embed=em, view=entrypoint_view(self.client,self.intx_data))
             return
 
-        if 'next_view' in self.intx_data:
+        if 'next_view' in self.intx_data and self.intx_data['next_view'] is not None:
             self.intx_data['target_nft_pool'] = {
                 'name': pool_name,
                 'id': pool_id
             }
-            await interaction.response.edit_message(embed=em, view=self.intx_data['next_view'])
+            if self.intx_data['next_view'] == 'nfts_menu':
+                self.intx_data['next_view']=None
+                await interaction.response.edit_message(embed=nfts_menu.template_embed(self.intx_data), view=nfts_menu.entrypoint_view(self.client,self.intx_data))
 
         elif 'change' in self.intx_data :
             self.intx_data['change']['edit_pool_name'] = pool_name
@@ -240,7 +243,7 @@ class nft_pool_name_modal(nextcord.ui.Modal):
         self.add_item(self.nft_pool)
 
     async def callback(self, interaction: nextcord.Interaction) -> None:
-        em = template_embed(self.intx_data,)
+        em = template_embed(self.intx_data)
         if self.search:
             self.intx_data['nft_pool_search_results'] = []
             search_string = self.nft_pool.value.lower().replace(' ','')
