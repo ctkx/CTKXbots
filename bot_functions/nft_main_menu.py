@@ -6,7 +6,7 @@ if "/bot_functions" not in sys.path:
 from keys_and_codes import default_embed_footer
 import admin_main_menu
 from database import nft_db
-from nft_modules import nft_pools_menu,nfts_menu # nft_roles,nft_pools,nfts,bot_wallet
+from nft_modules import nft_pools_menu,nft_roles_menu
 
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 #                                      Functions                                                *
@@ -45,6 +45,7 @@ class entrypoint_view(nextcord.ui.View):
         self.intx_data['next_view']='nfts_menu'
         self.intx_data['intx']=interaction
         await nft_pools_menu.nft_pool_search_or_select(self.client,self.intx_data)
+
     @nextcord.ui.button(label='NFT Pools', style=nextcord.ButtonStyle.blurple)
     async def nftpools(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
         # Send NFT pools menu
@@ -59,6 +60,8 @@ class entrypoint_view(nextcord.ui.View):
             em.add_field(name="No NFT Pools Found!", value="Please create an NFT Pool first.", inline=False)
             await interaction.response.edit_message(embed=em, view=entrypoint_view(self.client,self.intx_data))
             return
+        em = nft_roles_menu.template_embed(self.intx_data)
+        await interaction.response.edit_message(embed=em, view=nft_roles_menu.entrypoint_view(self.client,self.intx_data))
 
     @nextcord.ui.button(label='Wallets', style=nextcord.ButtonStyle.blurple)
     async def wallets(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):

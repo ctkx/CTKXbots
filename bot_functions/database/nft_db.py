@@ -27,12 +27,6 @@ def get_pool_nfts(guild_id,pool_id): # was get_nft_pool
         nft_quantity += int(nft['quantity'])
     return nft_list,nft_quantity,unique_nfts
 
-def add_bulk_import_sheet(guild_id,import_code,sheet_url):
-    return database.store('ctkxbotdb_nft','bulk_import_sheets',{'guild_id':guild_id,'import_code':import_code,'sheet_url':sheet_url})
-
-def get_bulk_import_sheets(guild_id):
-    return database.get('ctkxbotdb_nft','bulk_import_sheets',conditions={'guild_id':guild_id})
-
 def add_nfts_to_pool(guild_id,pool_id,nft_list):
     for nft in nft_list:
         nft['guild_id'] = guild_id
@@ -46,4 +40,16 @@ def edit_pool_nft(guild_id,nft):
     
 def delete_pool_nft(guild_id,nft):
     return database.store('ctkxbotdb_nft','guild_nfts',{},conditions={'guild_id':guild_id,'id':nft['id']},delete=True)
-    
+
+def get_nft_roles(guild_id):
+    return database.get('ctkxbotdb_nft','guild_nft_roles',conditions={'guild_id':guild_id})
+
+def create_nft_role(guild_id,role):
+    return database.store('ctkxbotdb_nft','guild_nft_roles',role)
+
+
+def add_bulk_import_sheet(guild_id,import_code,sheet_url):
+    return database.store('ctkxbotdb_nft','bulk_import_sheets',{'guild_id':guild_id,'import_code':import_code,'sheet_url':sheet_url})
+
+def get_bulk_import_sheets(guild_id):
+    return database.get('ctkxbotdb_nft','bulk_import_sheets',conditions={'guild_id':guild_id})

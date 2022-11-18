@@ -318,7 +318,7 @@ class nft_name_search_modal(nextcord.ui.Modal):
         self.add_item(self.nft_name_input)
 
     async def callback(self, interaction: nextcord.Interaction) -> None:
-        em = template_embed(self.intx_data,)
+        em = template_embed(self.intx_data)
 
         self.intx_data['nft_name_search_results'] = []
         search_string = self.nft_name_input.value.lower().replace(' ','')
