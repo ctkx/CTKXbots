@@ -9,6 +9,7 @@ from keys_and_codes import default_embed_footer
 import nft_main_menu
 from nft_modules import nfts_menu
 from database import nft_db
+from nft_modules import nft_roles_menu
 
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 #                                      Functions                                                *
@@ -142,13 +143,13 @@ class nft_pool_dropdown_select(nextcord.ui.Select):
             await interaction.response.edit_message(embed=em, view=entrypoint_view(self.client,self.intx_data))
             return
 
-        if 'next_view' in self.intx_data and self.intx_data['next_view'] is not None:
+        if 'forward_view' in self.intx_data and self.intx_data['forward_view'] is not None:
             self.intx_data['target_nft_pool'] = {
                 'name': pool_name,
                 'id': pool_id
             }
-            if self.intx_data['next_view'] == 'nfts_menu':
-                self.intx_data['next_view']=None
+            if self.intx_data['forward_view'] == 'nfts_menu':
+                self.intx_data['forward_view']=None
                 await interaction.response.edit_message(embed=nfts_menu.template_embed(self.intx_data), view=nfts_menu.entrypoint_view(self.client,self.intx_data))
 
         elif 'change' in self.intx_data :
@@ -160,6 +161,13 @@ class nft_pool_dropdown_select(nextcord.ui.Select):
             elif self.intx_data['change']['type'] == 'delete_nft_pool':
                 em.add_field(name="Confirm Change?", value=change_summary(self.intx_data['change']), inline=False)
                 await interaction.response.edit_message(embed=em, view=confirm_change_view(self.client,self.intx_data))
+            elif 'nft_role' in self.intx_data['change']['type']:
+                if self.intx_data['change']['edit_role']['target_type'] == 'nft':
+                    self.intx_data['intx'] = interaction
+                    await nfts_menu.nft_search_or_select(self.client,self.intx_data)
+                elif self.intx_data['change']['edit_role']['target_type'] == 'pool':
+                    em = nft_roles_menu.role_editor_embed(self.intx_data)
+                    await interaction.response.edit_message(embed=em, view=nft_roles_menu.role_edit_view(self.client,self.intx_data))
 
 # Define a simple View that gives us a counter button
 class nft_pool_dropdown(nextcord.ui.View):

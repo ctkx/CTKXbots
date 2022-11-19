@@ -10,6 +10,7 @@ if "/bot_functions" not in sys.path:
 
 from keys_and_codes import default_embed_footer
 import nft_main_menu
+from nft_modules import nft_roles_menu
 from database import nft_db
 from google import sheets
 # # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -71,6 +72,20 @@ def template_embed(intx_data,pool_stats=True):
 
     return(em)
 
+async def nft_search_or_select(client,intx_data):
+    if len(intx_data['nft_pools']) == 0: # If there are no nfts
+        intx_data['em'].add_field(name="No NFTs Found!", value="Please add some NFTs first.", inline=False)
+        await intx_data['intx'].response.edit_message(embed=intx_data['em'], view=entrypoint_view(client,intx_data))
+        return
+    elif 1<= len(intx_data['target_nft_pool']['nft_list']) <= 25: # Select Pool
+        intx_data['em'].add_field(name="Select an NFT", value="** **", inline=False)
+        await intx_data['intx'].response.edit_message(embed=intx_data['em'], view=pool_nft_dropdown(client,intx_data)) 
+        return
+    elif len(intx_data['target_nft_pool']['nft_list']) > 25:
+        # Maximum elintx_data['em']ents in a select menu is 25, send nft_name modal and search
+        await intx_data['intx'].response.send_modal(nft_name_search_modal(client,intx_data))
+        return
+
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 #                                      Views                                                    *
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -96,22 +111,12 @@ class entrypoint_view(nextcord.ui.View):
         self.intx_data['change'] = {
             'type': 'edit_nft',
         }
-        em=template_embed(self.intx_data)
+        self.intx_data['em']=template_embed(self.intx_data)
+        self.intx_data['intx']=interaction
         # get nfts in pool
         self.intx_data['target_nft_pool']['nft_list'],self.intx_data['target_nft_pool']['nft_quantity'],self.intx_data['target_nft_pool']['unique_nfts'] = nft_db.get_pool_nfts(self.intx_data['intx'].guild.id,self.intx_data['target_nft_pool']['id'])
+        await nft_search_or_select(self.client,self.intx_data)
 
-        if len(self.intx_data['nft_pools']) == 0: # If there are no nfts
-            em.add_field(name="No NFTs Found!", value="Please add some NFTs first.", inline=False)
-            await self.intx_data['intx'].response.edit_message(embed=em, view=entrypoint_view(self.client,self.intx_data))
-            return
-        elif 1<= len(self.intx_data['target_nft_pool']['nft_list']) <= 25: # Select Pool
-            em.add_field(name="Select an NFT", value="** **", inline=False)
-            await self.intx_data['intx'].response.edit_message(embed=em, view=pool_nft_dropdown(self.client,self.intx_data)) 
-            return
-        elif len(self.intx_data['target_nft_pool']['nft_list']) > 25:
-            # Maximum elements in a select menu is 25, send nft_name modal and search
-            await self.intx_data['intx'].response.send_modal(nft_name_search_modal(self.client,self.intx_data))
-            return
         
     @nextcord.ui.button(label='Delete NFT', style=nextcord.ButtonStyle.grey)
     async def delete(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
@@ -119,22 +124,11 @@ class entrypoint_view(nextcord.ui.View):
             'type': 'delete_nft',
         }
         self.intx_data['intx']=interaction
-        em=template_embed(self.intx_data)
+        self.intx_data['em']=template_embed(self.intx_data)
         # get nfts in pool
         self.intx_data['target_nft_pool']['nft_list'],self.intx_data['target_nft_pool']['nft_quantity'],self.intx_data['target_nft_pool']['unique_nfts'] = nft_db.get_pool_nfts(self.intx_data['intx'].guild.id,self.intx_data['target_nft_pool']['id'])
+        await nft_search_or_select(self.client,self.intx_data)
 
-        if len(self.intx_data['nft_pools']) == 0: # If there are no nfts
-            em.add_field(name="No NFTs Found!", value="Please add some NFTs first.", inline=False)
-            await self.intx_data['intx'].response.edit_message(embed=em, view=entrypoint_view(self.client,self.intx_data))
-            return
-        elif 1<= len(self.intx_data['target_nft_pool']['nft_list']) <= 25: # Select Pool
-            em.add_field(name="Select an NFT", value="** **", inline=False)
-            await self.intx_data['intx'].response.edit_message(embed=em, view=pool_nft_dropdown(self.client,self.intx_data)) 
-            return
-        elif len(self.intx_data['target_nft_pool']['nft_list']) > 25:
-            # Maximum elements in a select menu is 25, send nft_name modal and search
-            await self.intx_data['intx'].response.send_modal(nft_name_search_modal(self.client,self.intx_data))
-            return
 
     @nextcord.ui.button(label='Back', style=nextcord.ButtonStyle.grey)
     async def back(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
@@ -278,6 +272,8 @@ class pool_nft_dropdown_select(nextcord.ui.Select):
             await interaction.response.send_modal(add_nft_modal(self.client,self.intx_data))
         elif self.intx_data['change']['type'] == 'delete_nft':
             await interaction.response.edit_message(embed=self.intx_data['em'], view=nft_edit_confirm_view(self.client,self.intx_data))
+        elif 'nft_role' in self.intx_data['change']['type']:
+            await interaction.response.edit_message(embed=em, view=nft_roles_menu.role_edit_view(self.client,self.intx_data))
             
 
 # Define a simple View that gives us a counter button

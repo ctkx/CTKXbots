@@ -42,7 +42,7 @@ class entrypoint_view(nextcord.ui.View):
             em.add_field(name="No NFT Pools Found!", value="Please create an NFT Pool first.", inline=False)
             await interaction.response.edit_message(embed=em, view=entrypoint_view(self.client,self.intx_data))
             return
-        self.intx_data['next_view']='nfts_menu'
+        self.intx_data['forward_view']='nfts_menu'
         self.intx_data['intx']=interaction
         await nft_pools_menu.nft_pool_search_or_select(self.client,self.intx_data)
 
