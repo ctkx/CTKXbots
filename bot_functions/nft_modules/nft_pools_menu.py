@@ -137,6 +137,11 @@ class nft_pool_dropdown_select(nextcord.ui.Select):
                 pool_id = pool['id']
                 break
 
+        self.intx_data['target_nft_pool'] = {
+            'name': pool_name,
+            'id': pool_id
+        }
+
         if pool_id is None:
             em.add_field(name="Error", value=f"Could not find pool id for {pool_name}.", inline=False)
             em.add_field(name="What would you like to configure?", value="** **", inline=False)
@@ -144,10 +149,7 @@ class nft_pool_dropdown_select(nextcord.ui.Select):
             return
 
         if 'forward_view' in self.intx_data and self.intx_data['forward_view'] is not None:
-            self.intx_data['target_nft_pool'] = {
-                'name': pool_name,
-                'id': pool_id
-            }
+
             if self.intx_data['forward_view'] == 'nfts_menu':
                 self.intx_data['forward_view']=None
                 await interaction.response.edit_message(embed=nfts_menu.template_embed(self.intx_data), view=nfts_menu.entrypoint_view(self.client,self.intx_data))
@@ -166,6 +168,8 @@ class nft_pool_dropdown_select(nextcord.ui.Select):
                     self.intx_data['intx'] = interaction
                     await nfts_menu.nft_search_or_select(self.client,self.intx_data)
                 elif self.intx_data['change']['edit_role']['target_type'] == 'pool':
+                    self.intx_data['change']['edit_role']['target_id'] = self.intx_data['change']['edit_pool_id']
+                        
                     em = nft_roles_menu.role_editor_embed(self.intx_data)
                     await interaction.response.edit_message(embed=em, view=nft_roles_menu.role_edit_view(self.client,self.intx_data))
 

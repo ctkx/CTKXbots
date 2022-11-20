@@ -1,14 +1,27 @@
 import nextcord
+import sys
+if "/bot_functions" not in sys.path:
+    sys.path.append("/bot_functions")
 
+from keys_and_codes import default_embed_footer
+from nft_modules import nft_roles_menu
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 #                                      Functions                                                *
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
+async def go_to_next_view(client,intx_data,extra_field=None):
+    if 'change' in intx_data:
+        if 'nft_role' in intx_data['change']['type'] :
+            em = nft_roles_menu.role_editor_embed(intx_data)
+            if extra_field:
+                em.add_field(name=extra_field['name'], value=extra_field['value'], inline=False)
+            await intx_data['intx'].response.edit_message(embed=em, view=nft_roles_menu.role_edit_view(client,intx_data))
+            return
+
 async def guild_role_search_or_select(client,intx_data):
     # Select or Search Roles
     if len(intx_data['guild_roles']) == 0: # If there are no Roles
-        intx_data['em'].add_field(name="No Roles Found!", value="Please create some roles first.", inline=False)
-        await intx_data['intx'].response.edit_message(embed=intx_data['em'], view=intx_data['back_view'])
+        go_to_next_view(client,intx_data,extra_field={'name':'No Roles Found!','value':'Please create some roles first.'})
 
     elif 1<= len(intx_data['guild_roles']) <= 25: # Select Role
         intx_data['em'].add_field(name="Select a Role", value="** **", inline=False)
@@ -43,20 +56,20 @@ class guild_role_dropdown_select(nextcord.ui.Select):
             else:
                 options.append(nextcord.SelectOption(label=role_name, description=f"", emoji="❌"),)
 
-        super().__init__(placeholder='Select a Role ...', min_values=1, max_values=len(options), options=options)
+        super().__init__(placeholder='Select Roles ...', min_values=1, max_values=len(options), options=options)
 
     async def callback(self, interaction: nextcord.Interaction):
         selected_role_names = self.values
         self.intx_data['selected_roles']={}
-        role_names=[]
+        # role_names=[]
         for name in selected_role_names:
             self.intx_data['selected_roles'][name] = self.intx_data['guild_roles'][name]
-            role_names.append(name)
-        roles_str='\n'.join(role_names)
-        embed=self.intx_data['em'].add_field(name="Selected Roles",value=f"```\n{roles_str}```",inline=False)
-            
-        await interaction.response.edit_message(embed=self.intx_data['em'], view=self.intx_data['forward_view'])
-            
+        #     role_names.append(name)
+        # roles_str='\n'.join(role_names)
+        # embed=self.intx_data['em'].add_field(name="Selected Roles",value=f"```\n{roles_str}```",inline=False)
+        self.intx_data['intx'] = interaction
+        await go_to_next_view(self.client,self.intx_data)
+
 # Define a simple View that gives us a counter button
 class guild_role_dropdown(nextcord.ui.View):
     # Discord disabled selects in modals, we'll use a view for now TODO
@@ -68,8 +81,8 @@ class guild_role_dropdown(nextcord.ui.View):
 
     @nextcord.ui.button(label='Back', style=nextcord.ButtonStyle.grey)
     async def cancel(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
-        await interaction.response.edit_message(embed=self.intx_data['em'], view=self.intx_data['back_view'])
-
+        self.intx_data['intx'] = interaction
+        await go_to_next_view(self.client,self.intx_data)
 
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 #                                      Modals                                                   *

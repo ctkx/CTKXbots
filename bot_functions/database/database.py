@@ -165,5 +165,5 @@ def get(database,table,conditions={},auto_create=False):
             if "_list" in key:
                 val=val.split(', ')
             row_dict[key]=val
-        output.append(dict(zip(fields,row)))
+        output.append(row_dict)
     return output

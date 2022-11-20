@@ -73,6 +73,8 @@ def template_embed(intx_data,pool_stats=True):
     return(em)
 
 async def nft_search_or_select(client,intx_data):
+    print(f"NFT Search / Select with Pool ID: {intx_data['target_nft_pool']['id']}")
+    intx_data['target_nft_pool']['nft_list'],intx_data['target_nft_pool']['nft_quantity'],intx_data['target_nft_pool']['unique_nfts'] = nft_db.get_pool_nfts(intx_data['intx'].guild.id,intx_data['target_nft_pool']['id'])
     if len(intx_data['nft_pools']) == 0: # If there are no nfts
         intx_data['em'].add_field(name="No NFTs Found!", value="Please add some NFTs first.", inline=False)
         await intx_data['intx'].response.edit_message(embed=intx_data['em'], view=entrypoint_view(client,intx_data))
@@ -273,6 +275,8 @@ class pool_nft_dropdown_select(nextcord.ui.Select):
         elif self.intx_data['change']['type'] == 'delete_nft':
             await interaction.response.edit_message(embed=self.intx_data['em'], view=nft_edit_confirm_view(self.client,self.intx_data))
         elif 'nft_role' in self.intx_data['change']['type']:
+            self.intx_data['change']['edit_role']['target_id'] = self.intx_data['change']['nft']['id']
+            em = nft_roles_menu.role_editor_embed(self.intx_data)
             await interaction.response.edit_message(embed=em, view=nft_roles_menu.role_edit_view(self.client,self.intx_data))
             
 

@@ -13,10 +13,45 @@ from database import nft_db
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 #                                      Functions                                                *
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-
+def get_range_str(min_str, max_str):
+    if min_str != "-1" and max_str == "-1":
+        return f"{min_str}+"
+    elif min_str == "-1" and max_str != "-1":
+        return f"0 - {max_str}"
+    else:
+        return f"{min_str} - {max_str}"
+    
 def template_embed(intx_data):
     em = nextcord.Embed(title=intx_data['title'],description=intx_data['descr'],color=nextcord.Colour.random())
+    guild_nft_roles = nft_db.get_nft_roles(intx_data['intx'].guild.id)
+    role_str_list = []
+    for guild_nft_role in guild_nft_roles:
+        range_str=get_range_str(guild_nft_role['quantity_min'], guild_nft_role['quantity_max'])
+        guild_roles = []
 
+        if guild_nft_role['target_type'] == "nft":
+            target_dict = nft_db.get_nft(guild_nft_role['guild_id'],guild_nft_role['target_id'])
+            target_name = target_dict['nft_name']
+            role_str = f"{range_str} x {target_name}"
+
+        elif guild_nft_role['target_type'] == "pool":
+            target_dict = nft_db.get_nft_pool(guild_nft_role['guild_id'],guild_nft_role['target_id'])
+            target_name = target_dict['pool_name']
+            role_str = f"{range_str} NFTs in pool : {target_name}"
+
+        for role_id in guild_nft_role['role_id_list']:
+            for role_name,role in intx_data['guild_roles'].items():
+                if str(role.id) == role_id:
+                    guild_roles.append(role_name)
+
+        if len(guild_roles) > 0:
+            guild_roles_str = "\n".join(guild_roles)
+            role_str += f" > {guild_roles_str}"
+        role_str_list.append(role_str)
+
+    roles_str="\n".join(role_str_list)
+    if len(role_str) > 0:
+        em.add_field(name="Roles",value=f"```\n{roles_str}```")
 
     if 'embed_footer' in intx_data:
         embed_footer_text=intx_data['embed_footer']
@@ -26,32 +61,69 @@ def template_embed(intx_data):
 
     return(em)
 
+
+    
+
 def role_editor_embed(intx_data):
     title = intx_data['change']['type'].replace("_"," ").title().replace("Nft","NFT")
     em = nextcord.Embed(title=title,description=intx_data['descr'],color=nextcord.Colour.random())
-    print(intx_data)
+
+    range_str = None
+    target_name = None
+    qual_str = None
+
+    if intx_data['change']['edit_role']['quantity_min'] != intx_data['change']['edit_role']['quantity_max']: 
+        # Quantities have been set
+        min_str = str(intx_data['change']['edit_role']['quantity_min'])
+        max_str = str(intx_data['change']['edit_role']['quantity_max'])
+
+        range_str = get_range_str(min_str, max_str)
+
     if 'target_type' in intx_data['change']['edit_role']:
-        em.add_field(name="Target Type",value=f"```\n{intx_data['change']['edit_role']['target_type']}```",inline=False) 
-    if 'target_id' in intx_data['change']:
-        em.add_field(name="Target ID",value=f"```\n{intx_data['change']['edit_role']['target_id']}```",inline=False)
+        # Target type has been set`
+        target_type = intx_data['change']['edit_role']['target_type']
+        if target_type == "nft":
+            target_type = 'NFT '
+            target_dict = nft_db.get_nft(intx_data['intx'].guild.id,intx_data['change']['edit_role']['target_id'])
+            target_name = target_dict['nft_name']
 
-    if 'active_role_id_list' in intx_data['change']['edit_role']:
-        em.add_field(name="Active Role ID List",value=f"```\n{intx_data['change']['edit_role']['active_role_id_list']}```",inline=False)
+        elif target_type == "pool":
+            target_type = 'Pool'
+            target_dict = nft_db.get_nft_pool(intx_data['intx'].guild.id,intx_data['change']['edit_role']['target_id'])
+            target_name = target_dict['pool_name']
 
-    for field in ['quantity_min','quantity_max']:
-        if field in intx_data['change']['edit_role']:
-            if intx_data['change']['edit_role'][field] == '-1':
-                value = '-1 (No Limit)'
-            else:
-                value = intx_data['change']['edit_role'][field]
-            em.add_field(name=field.replace("_"," ").title(),value=f"```\n{value}```",inline=False)
+    if target_name and not range_str:
+        qual_str = target_name
+    elif range_str and not target_name:
+        qual_str = range_str
+    elif target_name and range_str:
+        qual_str = f"{target_type}     : {target_name}\nQuantity : {range_str}" # f"{range_str} {target_str}"
+
+    if qual_str:
+        em.add_field(name="Qualification",value=f"```\n{qual_str}```",inline=False)
+
+    if 'role_id_list' in intx_data['change']['edit_role']:
+        em.add_field(name="Active Role ID List",value=f"```\n{intx_data['change']['edit_role']['role_id_list']}```",inline=False)
 
     if 'selected_roles' in intx_data:
         role_names = []
-        for role_name,_ in intx_data['selected_roles'].items():
-            role_names.append(role_name)
+        for role_name,role in intx_data['selected_roles'].items():
+            if str(role.id) in intx_data['change']['edit_role']['role_id_list']:
+                role_names.append(f"{role_name} (Removing)")
+            else:
+                role_names.append(role_name)
         roles_str = '\n'.join(role_names)
-        em.add_field(name="Selected Roles",value=f"```\n{roles_str}```",inline=False)
+        em.add_field(name="Grant Roles",value=f"```\n{roles_str}```",inline=False)
+
+    if intx_data['change']['type'] == 'create_nft_role':
+        if intx_data['change']['edit_role']['target_type'] is None or intx_data['change']['edit_role']['target_id'] is None:
+            em.add_field(name="Please Select Qualifying NFT or Pool",value=f"** **",inline=False) 
+        elif intx_data['change']['edit_role']['quantity_min'] == intx_data['change']['edit_role']['quantity_max']:
+            em.add_field(name="Please Set Required NFT Quantity",value=f"** **",inline=False)
+        elif 'selected_roles' not in intx_data or intx_data['selected_roles'] is None:
+            em.add_field(name="Please Select Role",value=f"** **",inline=False)
+        else:
+            em.add_field(name="Ready to Save",value=f"** **",inline=False)
 
     return(em)
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -71,7 +143,7 @@ class entrypoint_view(nextcord.ui.View):
         self.intx_data['change'] = {
             'type': 'create_nft_role',
             'edit_role':{
-                'active_role_id_list':[],
+                'role_id_list':[],
                 'quantity_min':'-1',
                 'quantity_max':'-1',
                 'target_type':None,
@@ -121,19 +193,57 @@ class role_edit_view(nextcord.ui.View):
     async def req_quant(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
         await interaction.response.send_modal(role_quantity_modal(self.client,self.intx_data))
 
-    @nextcord.ui.button(label='Role', style=nextcord.ButtonStyle.blurple)
+    @nextcord.ui.button(label='Roles', style=nextcord.ButtonStyle.blurple)
     async def role(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
-        self.intx_data['forward_view']=role_edit_view(self.client,self.intx_data)
-        self.intx_data['back_view']=role_edit_view(self.client,self.intx_data)
-        self.intx_data['active_role_id_list']=self.intx_data['change']['edit_role']['active_role_id_list']
+        self.intx_data['role_id_list']=self.intx_data['change']['edit_role']['role_id_list']
         self.intx_data['intx']=interaction
         self.intx_data['em']=role_editor_embed(self.intx_data)
         await role_selection.guild_role_search_or_select(self.client,self.intx_data)
+        
+    @nextcord.ui.button(label='Save', style=nextcord.ButtonStyle.green)
+    async def save_role(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
+        if self.intx_data['change']['type'] == 'create_nft_role':
+            saveable = True
+            if self.intx_data['change']['edit_role']['target_type'] is None or self.intx_data['change']['edit_role']['target_id'] is None:
+                saveable = False
+            elif self.intx_data['change']['edit_role']['quantity_min'] == self.intx_data['change']['edit_role']['quantity_max']:
+                saveable = False
+            elif 'selected_roles' not in self.intx_data or self.intx_data['selected_roles'] is None:
+                saveable = False
+            if not saveable:
+                em = role_editor_embed(self.intx_data)
+                em.add_field(name="Finish Role setup before saving!",value="** **",inline=False)
+                await interaction.response.edit_message(embed=em, view=role_edit_view(self.client,self.intx_data))
+                return
 
+            new_role_id_list = []
+            for _,role in self.intx_data['selected_roles'].items():
+                new_role_id_list.append(str(role.id))
+
+            self.intx_data['change']['edit_role']['role_id_list']=new_role_id_list
+            self.intx_data['change']['edit_role']['guild_id']=str(interaction.guild.id)
+
+            success,output=nft_db.create_nft_role(role=self.intx_data['change']['edit_role'])
+            if success:
+                output=f"Success !"
+                emoji='✅'
+            else:
+                emoji='❌'
+            em=template_embed(self.intx_data)
+            em.add_field(name="Save ", value=f"{emoji} {output}", inline=False)
+            await interaction.response.edit_message(embed=em, view=nft_main_menu.entrypoint_view(self.client,self.intx_data))
+
+
+        elif self.intx_data['change']['type'] == 'edit_nft_role':
+            pass
+
+
+
+        
     @nextcord.ui.button(label='Back', style=nextcord.ButtonStyle.grey)
     async def back(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
         em = nft_main_menu.template_embed(self.intx_data)
-        await interaction.respconse.edit_message(embed=em, view=entrypoint_view(self.client,self.intx_data))
+        await interaction.response.edit_message(embed=em, view=entrypoint_view(self.client,self.intx_data))
 
 class role_target_type_view(nextcord.ui.View):
     
@@ -160,7 +270,7 @@ class role_target_type_view(nextcord.ui.View):
     @nextcord.ui.button(label='Back', style=nextcord.ButtonStyle.grey)
     async def back(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
         em = nft_main_menu.template_embed(self.intx_data)
-        await interaction.response.edit_message(embed=em, view=entrypoint_view(self.client,self.intx_data))
+        await interaction.response.edit_message(embed=em, view=role_edit_view(self.client,self.intx_data))
 
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 #                                      Modals                                                   *
