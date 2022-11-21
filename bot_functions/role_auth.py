@@ -15,7 +15,7 @@ async def command_auth(intx_data,auth_command,alert=True):
     else:
         authenticated = False
 
-        auth_roles = command_roles_db.get_guild_comand_roles(intx_data['intx'].guild.id,auth_command)
+        auth_roles = command_roles_db.get_guild_command_roles(intx_data['intx'].guild.id,auth_command)
         print(f"auth_roles: {auth_roles}")
         for userRole in intx_data['intx'].user.roles:
             print(f"Checking Role: {userRole}")

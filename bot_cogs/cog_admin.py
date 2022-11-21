@@ -10,6 +10,7 @@ if "/bot_functions" not in sys.path:
 from database import log_channel_db
 from keys_and_codes import default_embed_footer
 import admin_main_menu, role_auth
+from admin_modules import log_config_menu
 
 class admin(commands.Cog):
 
@@ -69,8 +70,8 @@ class admin(commands.Cog):
             if authenticated:
                 intx_data['em'].add_field(name="Admin functionality has not been set up.",value=f"A log channel is required for bot alerts.\nIt is recommended to use a restricted channel",inline=False)
                 intx_data['descr']=f"Select a Log Channel"
-                intx_data['target_func']=f"log_channel"
-                await intx_data['intx'].response.send_message(embed=intx_data['em'],view=log_channel_config.entrypoint_view(self.client,intx_data))
+                # intx_data['target_func']=f"log_channel"
+                await intx_data['intx'].response.send_message(embed=intx_data['em'],view=log_config_menu.admin_setup_view(self.client,intx_data))
                 return
             else:
                 intx_data['em'].add_field(name="Admin functionality has not been set up.",value=f"The server owner must run this command and perform setup",inline=False)

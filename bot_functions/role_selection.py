@@ -5,6 +5,7 @@ if "/bot_functions" not in sys.path:
 
 from keys_and_codes import default_embed_footer
 from nft_modules import nft_roles_menu
+from admin_modules import command_config_menu
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 #                                      Functions                                                *
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -16,6 +17,12 @@ async def go_to_next_view(client,intx_data,extra_field=None):
             if extra_field:
                 em.add_field(name=extra_field['name'], value=extra_field['value'], inline=False)
             await intx_data['intx'].response.edit_message(embed=em, view=nft_roles_menu.role_edit_view(client,intx_data))
+            return
+        elif intx_data['change']['type'] == 'command_auth_role':
+            em = command_config_menu.command_auth_role_embed(intx_data)
+            if extra_field:
+                em.add_field(name=extra_field['name'], value=extra_field['value'], inline=False)
+            await intx_data['intx'].response.edit_message(embed=em, view=command_config_menu.auth_role_confirm(client,intx_data))
             return
 
 async def guild_role_search_or_select(client,intx_data):
@@ -50,6 +57,8 @@ class guild_role_dropdown_select(nextcord.ui.Select):
         if 'change' in self.intx_data:
             if 'nft_role' in self.intx_data['change']['type']:
                 active_role_id_list = intx_data['change']['edit_role']['role_id_list']
+            elif intx_data['change']['type'] == 'command_auth_role':
+                active_role_id_list = intx_data['change']['role_id_list']
         for role_name,role in role_list.items():
             if str(role.id) in active_role_id_list:
                 options.append(nextcord.SelectOption(label=role_name, description=f"", emoji="✅"),)
