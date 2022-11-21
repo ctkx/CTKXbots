@@ -47,9 +47,9 @@ class guild_role_dropdown_select(nextcord.ui.Select):
         if 'role_name_search_results' in self.intx_data:
             role_list = self.intx_data['role_name_search_results']
 
-        if 'active_role_id_list' in self.intx_data:
-            active_role_id_list = self.intx_data['active_role_id_list']
-
+        if 'change' in self.intx_data:
+            if 'nft_role' in self.intx_data['change']['type']:
+                active_role_id_list = intx_data['change']['edit_role']['role_id_list']
         for role_name,role in role_list.items():
             if str(role.id) in active_role_id_list:
                 options.append(nextcord.SelectOption(label=role_name, description=f"", emoji="✅"),)

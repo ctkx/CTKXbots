@@ -7,8 +7,11 @@ from database import database
 def create_nft_role(role):
     return database.store('ctkxbotdb_nft','guild_nft_roles',role)
 
-def edit_nft_role(guild_id,role_id,role_changes):
-    return database.store('ctkxbotdb_nft','guild_nft_roles',role_changes,conditions={'guild_id':guild_id,'id':role_id},update=True)
+def edit_nft_role(guild_id,role_id,new_role_data):
+    return database.store('ctkxbotdb_nft','guild_nft_roles',new_role_data,conditions={'guild_id':guild_id,'id':role_id},update=True)
+
+def delete_nft_role(guild_id,role_id):
+    return database.store('ctkxbotdb_nft','guild_nft_roles',{},conditions={'guild_id':guild_id,'id':role_id},delete=True)
 
 def get_nft_roles(guild_id):
     return database.get('ctkxbotdb_nft','guild_nft_roles',conditions={'guild_id':guild_id})

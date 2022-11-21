@@ -50,7 +50,6 @@ def store(database,table,data,update=False,conditions={},delete=False):
                 elif isinstance(row[field_name], str):
                     field_value = f"'{row[field_name]}'"
                 elif isinstance(row[field_name], list):
-                    print(row[field_name])
                     field_value = ', '.join(str(val) for val in row[field_name])
                     field_value = f"'{field_value}'"
                 else:
@@ -63,15 +62,19 @@ def store(database,table,data,update=False,conditions={},delete=False):
         query = f"INSERT INTO {table}({fields_string}) VALUES{values_string};"
     else:
         pairs=[]
-        for key,value in data.items():
-            pairs.append(f"{key} = '{value}'")
+        for field_name,value in data.items():
+            print(type(value))
+            if isinstance(value, list):
+                field_value = ', '.join(str(val) for val in value)
+                value = field_value
+            pairs.append(f"{field_name} = '{value}'")
         pairs = ', '.join(pairs)
 
         conditions_string=''
         if len(conditions) != 0:
             conditions_list=[]
             for key,value in conditions.items():
-                if isnumber(value):
+                if isnumber(value) and key != 'guild_id':
                     conditions_list.append(f"{key} = {value}")
                 else:
                     conditions_list.append(f"{key} = '{value}'")
@@ -139,7 +142,7 @@ def get(database,table,conditions={},auto_create=False):
     if len(conditions) != 0:
         conditions_list=[]
         for key,value in conditions.items():
-            if key == 'id':
+            if key == 'id' :
                 conditions_list.append(f"{key} = {value}")
             else:
                 conditions_list.append(f"{key} = '{value}'")
