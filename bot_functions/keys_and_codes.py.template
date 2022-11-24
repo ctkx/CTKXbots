@@ -1,0 +1,18 @@
+discord_token = 'replace_discord_api_token_here'
+bot_owner_user_id = 0 # replace with your discord user id
+
+debug=False # set to True to enable verbose logging 
+
+default_embed_footer={
+    'text' : " ",
+    'icon_url' : ""
+}
+
+db_conf={
+    'host' : '',
+    'user' : '',
+    'password' : '',
+    'debug_queries' : False # set to True to enable verbose queries
+}
+
+gcreds='bot_functions/gspread-creds.json'
