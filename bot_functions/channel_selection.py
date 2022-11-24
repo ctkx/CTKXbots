@@ -67,9 +67,7 @@ class guild_channel_dropdown_select(nextcord.ui.Select):
         self.intx_data['intx'] = interaction
         await go_to_next_view(self.client,self.intx_data)
 
-# Define a simple View that gives us a counter button
 class guild_channel_dropdown(nextcord.ui.View):
-    # Discord disabled selects in modals, we'll use a view for now TODO
     def __init__(self,client,intx_data):
         self.intx_data = intx_data
         self.client = client

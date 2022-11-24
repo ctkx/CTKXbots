@@ -173,9 +173,7 @@ class nft_pool_dropdown_select(nextcord.ui.Select):
                     em = nft_roles_menu.role_editor_embed(self.intx_data)
                     await interaction.response.edit_message(embed=em, view=nft_roles_menu.role_edit_view(self.client,self.intx_data))
 
-# Define a simple View that gives us a counter button
 class nft_pool_dropdown(nextcord.ui.View):
-    # Discord disabled selects in modals, we'll use a view for now TODO
     def __init__(self,client,intx_data):
         self.intx_data = intx_data
         self.client = client

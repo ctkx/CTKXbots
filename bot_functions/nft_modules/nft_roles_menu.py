@@ -27,7 +27,7 @@ def get_roles_with_info(intx_data):
         range_str=get_range_str(guild_nft_role['quantity_min'], guild_nft_role['quantity_max'])
         guild_nft_role['role_list'] = []
         if guild_nft_role['target_type'] == "nft":
-            target_dict = nft_db.get_nft(guild_nft_role['guild_id'],guild_nft_role['target_id'])
+            target_dict = nft_db.get_pool_nft(guild_nft_role['guild_id'],guild_nft_role['target_id'])
             guild_nft_role['target_name'] = target_dict['nft_name']
             qual_str = f"{range_str} x '{guild_nft_role['target_name']}'"
 
@@ -95,7 +95,7 @@ def role_editor_embed(intx_data):
         target_type = intx_data['change']['edit_role']['target_type']
         if target_type == "nft":
             target_type = 'NFT '
-            target_dict = nft_db.get_nft(intx_data['intx'].guild.id,intx_data['change']['edit_role']['target_id'])
+            target_dict = nft_db.get_pool_nft(intx_data['intx'].guild.id,intx_data['change']['edit_role']['target_id'])
             target_name = target_dict['nft_name']
 
         elif target_type == "pool":
@@ -338,9 +338,7 @@ class nft_role_dropdown_select(nextcord.ui.Select):
                 self.intx_data['change']['edit_role']= guild_nft_role
         await interaction.response.edit_message(embed=role_editor_embed(self.intx_data), view=role_edit_view(self.client,self.intx_data))
 
-# Define a simple View that gives us a counter button
 class nft_role_dropdown(nextcord.ui.View):
-    # Discord disabled selects in modals, we'll use a view for now TODO
     def __init__(self,client,intx_data):
         self.intx_data = intx_data
         self.client = client

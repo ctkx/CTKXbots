@@ -16,6 +16,12 @@ def delete_nft_role(guild_id,role_id):
 def get_nft_roles(guild_id):
     return database.get('ctkxbotdb_nft','guild_nft_roles',conditions={'guild_id':guild_id})
 
+def get_nft_role_guilds():
+    guild_list=[]
+    for role in database.get('ctkxbotdb_nft','guild_nft_roles'):
+        guild_list.append(role['guild_id'])
+    return guild_list
+
 def get_nft_role(guild_id,role_id):
     return database.get('ctkxbotdb_nft','guild_nft_roles',conditions={'guild_id':guild_id,'id':role_id})[0]
 
@@ -45,7 +51,7 @@ def get_pool_nfts(guild_id,pool_id):
         nft_quantity += int(nft['quantity'])
     return nft_list,nft_quantity,unique_nfts
 
-def get_nft(guild_id,nft_id):
+def get_pool_nft(guild_id,nft_id):
     return database.get('ctkxbotdb_nft','guild_nfts',conditions={'guild_id':guild_id,'id':nft_id})[0]
 
 def add_nfts_to_pool(guild_id,pool_id,nft_list):
@@ -69,3 +75,39 @@ def add_bulk_import_sheet(guild_id,import_code,sheet_url):
 def get_bulk_import_sheets(guild_id):
     return database.get('ctkxbotdb_nft','bulk_import_sheets',conditions={'guild_id':guild_id})
 
+def get_user_wallets(guild_id,user_id=None,all_users=False):
+    if all_users:
+        return database.get('crypto_wallets','user_wallets',conditions={'guild_id':guild_id})
+    elif user_id is not None:
+        return database.get('crypto_wallets','user_wallets',conditions={'guild_id':guild_id,'discord_user_id':user_id})
+
+def get_wallet_owner_id(guild_id,wallet_address):
+    wallets = database.get('crypto_wallets','user_wallets',conditions={'guild_id':guild_id,'wallet_address':wallet_address})
+    if len(wallets) == 0:
+        return None
+    return wallets[0]['discord_user_id']
+
+
+def edit_user_wallet(intx_data):
+    print(intx_data['operation'])
+    if intx_data['operation'] == "add":
+        data={
+            'guild_id': intx_data['guild_id'],
+            'discord_user_id': intx_data['user_id'],
+            'wallet_input': intx_data['wallet_input'].lower(),
+            'wallet_address': intx_data['wallet_address'].lower(),
+            'wallet_note': intx_data['wallet_note'],
+            'last_ens_refresh': str(time.time()).split('.')[0],
+            'last_loopring_account_refresh': str(time.time()).split('.')[0],
+        }
+        success,output = database.store('crypto_wallets','user_wallets',data)
+        print(success,output)
+        print("---")
+    elif intx_data['operation'] == "remove":
+        cond={
+            'guild_id': intx_data['guild_id'],
+            'discord_user_id': intx_data['user_id'],
+            'wallet_input': intx_data['wallet_input'],
+        }
+        query=f"DELETE FROM user_wallets WHERE guild_id='{intx_data['guild_id']}' AND discord_user_id='{intx_data['user_id']}' AND wallet_input='{intx_data['wallet_input']}';"
+        success,output = database.store('crypto_wallets','user_wallets',conditions=cond,delete=True)

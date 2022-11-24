@@ -17,6 +17,8 @@ cog_dir = '/bot_cogs'
 bot_cogs=[
     'cog_ping',
     'cog_admin',
+    'cog_wallet',
+    'cog_auto_nft_role',
 ]
 
 for filename in os.listdir(cog_dir):
