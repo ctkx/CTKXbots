@@ -42,54 +42,50 @@ async def guild_role_search_or_select(client,intx_data):
 #                                      Views                                                    *
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
-class guild_role_dropdown_select(nextcord.ui.Select):
-    def __init__(self,client,intx_data):
-        self.intx_data = intx_data
-        self.client = client
+    class guild_role_dropdown_select(nextcord.ui.Select):
+        def __init__(self,client,intx_data):
+            self.intx_data = intx_data
+            self.client = client
 
-        options = []
-        active_role_id_list = []
-        role_list = self.intx_data['guild_roles']
+            options = []
+            active_role_id_list = []
+            role_list = self.intx_data['guild_roles']
 
-        if 'role_name_search_results' in self.intx_data:
-            role_list = self.intx_data['role_name_search_results']
+            if 'role_name_search_results' in self.intx_data:
+                role_list = self.intx_data['role_name_search_results']
 
-        if 'change' in self.intx_data:
-            if 'nft_role' in self.intx_data['change']['type']:
-                active_role_id_list = intx_data['change']['edit_role']['role_id_list']
-            elif intx_data['change']['type'] == 'command_auth_role':
-                active_role_id_list = intx_data['change']['role_id_list']
-        for role_name,role in role_list.items():
-            if str(role.id) in active_role_id_list:
-                options.append(nextcord.SelectOption(label=role_name, description=f"", emoji="✅"),)
-            else:
-                options.append(nextcord.SelectOption(label=role_name, description=f"", emoji="❌"),)
+            if 'change' in self.intx_data:
+                if 'nft_role' in self.intx_data['change']['type']:
+                    active_role_id_list = intx_data['change']['edit_role']['role_id_list']
+                elif intx_data['change']['type'] == 'command_auth_role':
+                    active_role_id_list = intx_data['change']['role_id_list']
+            for role_name,role in role_list.items():
+                if str(role.id) in active_role_id_list:
+                    options.append(nextcord.SelectOption(label=role_name, description=f"", emoji="✅"),)
+                else:
+                    options.append(nextcord.SelectOption(label=role_name, description=f"", emoji="❌"),)
 
-        super().__init__(placeholder='Select Roles ...', min_values=1, max_values=len(options), options=options)
+            super().__init__(placeholder='Select Roles ...', min_values=1, max_values=len(options), options=options)
 
-    async def callback(self, interaction: nextcord.Interaction):
-        selected_role_names = self.values
-        self.intx_data['selected_roles']={}
-        # role_names=[]
-        for name in selected_role_names:
-            self.intx_data['selected_roles'][name] = self.intx_data['guild_roles'][name]
-        #     role_names.append(name)
-        # roles_str='\n'.join(role_names)
-        # embed=self.intx_data['em'].add_field(name="Selected Roles",value=f"```\n{roles_str}```",inline=False)
-        self.intx_data['intx'] = interaction
-        await go_to_next_view(self.client,self.intx_data)
+        async def callback(self, interaction: nextcord.Interaction):
+            selected_role_names = self.values
+            self.intx_data['selected_roles']={}
+            for name in selected_role_names:
+                self.intx_data['selected_roles'][name] = self.intx_data['guild_roles'][name]
+            self.intx_data['intx'] = interaction
+            await go_to_next_view(self.client,self.intx_data)
 
-class guild_role_dropdown(nextcord.ui.View):
-    def __init__(self,client,intx_data):
-        self.intx_data = intx_data
-        self.client = client
-        super().__init__()
-        self.add_item(guild_role_dropdown_select(self.client,intx_data))
+    class guild_role_dropdown(nextcord.ui.View):
+        def __init__(self,client,intx_data):
+            self.intx_data = intx_data
+            self.client = client
+            super().__init__()
+            self.add_item(guild_role_dropdown_select(self.client,intx_data))
 
-    @nextcord.ui.button(label='Back', style=nextcord.ButtonStyle.grey)
-    async def cancel(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
-        self.intx_data['intx'] = interaction
-        await go_to_next_view(self.client,self.intx_data)
+        @nextcord.ui.button(label='Back', style=nextcord.ButtonStyle.grey)
+        async def cancel(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):
+            self.intx_data['intx'] = interaction
+            await go_to_next_view(self.client,self.intx_data)
 
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 #                                      Modals                                                   *

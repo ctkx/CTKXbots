@@ -6,6 +6,7 @@ if "/bot_functions" not in sys.path:
 from keys_and_codes import loopring_api_key,debug
 from loopring import get
 from database import nft_db
+import log_messages
 import asyncio
 from threading import Thread
 import time
@@ -13,8 +14,6 @@ import time
 #                                      Functions                                                *
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 def get_nft_owner_addresses(nft_id,minter_address,token_address):
-    # print(f"auto_nft_role: get_owner_addresses")
-    # print(membership_nft)
     url=f"https://api3.loopring.io/api/v3/nft/info/nftData?minter={minter_address}&tokenAddress={token_address}&nftId={nft_id}"
 
     data=requests.get(url).json()
@@ -39,7 +38,6 @@ def get_nft_owner_addresses(nft_id,minter_address,token_address):
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 #                                      Loop Class                                               *
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-dry_run = False
 
 # make a loop running in a parallel Thread
 class AsyncLoopThread(Thread):
@@ -58,27 +56,30 @@ async def auto_manage_nft_roles(guild,guild_members):
         'owner_addresses':{},
         'wallet_balances':{},
         'user_wallets':{},
-        'roles':{}
+        'roles':{},
+        'changes':{
+            'add_role' : {
+                # {'user_id':0, 'role_list':[] },
+            },
+            'remove_role' : {
+                # {'user_id':0, 'role_list':[] },
+            },
+        }
     }
 
     # Get NFT Roles and target NFT info, and get owner addresses for each NFT
-    print(f"auto_manage_nft_roles: processing role data for {guild.name} ")
+    print(f"auto_nft_role: {guild.name} processing NFT data ")
     for nft_role in guild_nft_roles:
-        for discord_role_id in nft_role['role_id_list']:
-            if discord_role_id not in data['roles']:
-                data['roles'][str(discord_role_id)] = nft_role
-            print(discord_role_id)
-
         if nft_role['target_type'] == 'nft':
-            data['roles'][discord_role_id]['nft_list'] = [nft_db.get_pool_nft(f"{guild.id}",nft_role['target_id'])]
+            nft_role['nft_list'] = [nft_db.get_pool_nft(f"{guild.id}",nft_role['target_id'])]
         elif nft_role['target_type'] == 'pool':
-            data['roles'][discord_role_id]['nft_list'],_,_ = nft_db.get_pool_nfts(f"{guild.id}",nft_role['target_id'])
-        for nft in data['roles'][discord_role_id]['nft_list']:
+            nft_role['nft_list'],_,_ = nft_db.get_pool_nfts(f"{guild.id}",nft_role['target_id'])
+        for nft in nft_role['nft_list']:
             if nft['nft_id'] not in data['owner_addresses']:
                 data['owner_addresses'][nft['nft_id']] = get_nft_owner_addresses(nft['nft_id'],nft['minter_address'],nft['token_address'])
                 print(f"Found {len(data['owner_addresses'][nft['nft_id']])} owners for NFT: {nft['nft_name']}")
 
-    print(f"auto_manage_nft_roles: processing owner addresses for {guild.name} ")
+    print(f"auto_nft_role: {guild.name} processing owner addresses ")
     for nft_id,address_list in data['owner_addresses'].items(): 
         # get_nft_owner_addresses only gives us the address, not the quantity of NFTs owned. So we need to get the balance of each address
         for wallet_address in address_list:
@@ -86,7 +87,7 @@ async def auto_manage_nft_roles(guild,guild_members):
                 loopring_account_id = get.user_info(wallet_address)['accountId']
                 data['wallet_balances'][wallet_address.lower()] = get.user_nft_balance(loopring_account_id)
 
-    print(f"auto_manage_nft_roles: processing wallets for {guild.name} ")
+    print(f"auto_nft_role: {guild.name} processing wallets ")
 
     for wallet in guild_wallets:
     # guild_wallets is a list of dicts, each dict is a user's wallet info.
@@ -97,20 +98,87 @@ async def auto_manage_nft_roles(guild,guild_members):
             data['user_wallets'][user_id] = []
         data['user_wallets'][user_id].append(wallet['wallet_address'].lower())
 
-    print(f"auto_manage_nft_roles: managing roles for {guild.name} ")
-    for member in guild_members:
-        if member.bot:
-            continue # skip bots
-        for member_role in member.roles:
-            if str(member_role.id) not in data['roles']:
-                continue # skip roles that aren't NFT roles
-            print(data['roles'][str(member_role.id)])
-            min_req_nfts = int(data['roles'][str(member_role.id)]['quantity_min'])
-            max_req_nfts = int(data['roles'][str(member_role.id)]['quantity_max'])
-            print(f"Member {member.name} has NFT role {member_role.name}")
+    dry_run = False
 
+    for nft_role in guild_nft_roles:
+        min_req_nfts = int(nft_role['quantity_min'])
+        max_req_nfts = int(nft_role['quantity_max'])
 
+        for member in guild_members:
+            if member.bot:
+                continue # skip bots
 
+            for role_id in nft_role['role_id_list']:
+                role = guild.get_role(int(role_id))
+
+                member_has_role = False
+                member_entitled_to_role = False
+
+                for member_role in member.roles:
+                    if member_role.id == int(role_id):
+                        member_has_role = True
+                        break
+
+                score = 0
+
+                for address in data['user_wallets'][str(member.id)]:
+                    for nft in nft_role['nft_list']:
+
+                        if address in data['wallet_balances']:
+                            for _,wallet_nft in data['wallet_balances'][address].items():
+
+                                if nft['nft_id'] == wallet_nft['nftId']:
+                                    score += int(wallet_nft['total'])
+
+                            if score > 0:
+                                print(f"auto_nft_role: {guild.name} {wallet['wallet_address']} scored {score}")
+
+                if min_req_nfts <= score <= max_req_nfts:
+                    member_entitled_to_role = True
+
+                else:
+                    member_entitled_to_role = False
+
+                assignment_output = ''
+
+                if member_has_role and not member_entitled_to_role:
+                    if str(member.id) not in data['changes']['remove_role']:
+                        data['changes']['remove_role'][str(member.id)] = []
+
+                    assignment_output=f"Removing role {role.name} from {member.name}"
+                    data['changes']['remove_role'][str(member.id)].append(role)
+
+                elif not member_has_role and member_entitled_to_role:
+                    if str(member.id) not in data['changes']['add_role']:
+                        data['changes']['add_role'][str(member.id)] = []
+
+                    assignment_output=f"Adding role {role.name} to {member.name}"
+                    data['changes']['add_role'][str(member.id)].append(role)
+
+                if len(assignment_output) > 0:
+                    if dry_run:
+                        assignment_output=f"{assignment_output} (dry run)"
+
+                    print(assignment_output)
+
+    if dry_run:
+        print(f"auto_nft_role: {guild.name} changing roles (dry run) ")
+
+    if not dry_run:
+        member_count = len(data['changes']['remove_role']) + len(data['changes']['add_role'])
+        print(f"auto_nft_role: {guild.name} changing roles for {member_count} members in{guild.name} ")
+
+        for user_id,remove_role_list in data['changes']['remove_role'].items():
+            print(f"Removing roles for {user_id}")
+            await member.remove_roles(*remove_role_list)
+            role_names = ', '.join([role.name for role in remove_role_list])
+            print(f"Removed roles {role_names} from {member.name}")
+
+        for user_id,add_role_list in data['changes']['add_role'].items():
+            print(f"Adding roles for {user_id}")
+            await member.add_roles(*add_role_list)
+            role_names = ', '.join([role.name for role in add_role_list])
+            print(f"Added roles {role_names} to {member.name}")
 
 class auto_nft_role(commands.Cog):
 

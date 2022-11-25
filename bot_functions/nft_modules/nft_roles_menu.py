@@ -213,11 +213,14 @@ class role_edit_view(nextcord.ui.View):
         existing_role_id_list = self.intx_data['change']['edit_role']['role_id_list']
         selected_role_id_list = []
         edit_role = self.intx_data['change']['edit_role']
-        for _,role in self.intx_data['selected_roles'].items():
-            selected_role_id = str(role.id)
-            selected_role_id_list.append(selected_role_id)
-            if selected_role_id not in existing_role_id_list: # Removing role
-                new_role_id_list.append(selected_role_id)
+        if 'selected_roles' in self.intx_data:
+            for _,role in self.intx_data['selected_roles'].items():
+                selected_role_id = str(role.id)
+                selected_role_id_list.append(selected_role_id)
+                if selected_role_id not in existing_role_id_list: # Removing role
+                    new_role_id_list.append(selected_role_id)
+        else:
+            selected_role_id_list = []
         for role_id in existing_role_id_list:
             if role_id not in selected_role_id_list and role_id not in new_role_id_list: # Existing roles that were not selected
                 new_role_id_list.append(role_id)

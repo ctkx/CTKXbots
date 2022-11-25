@@ -4,3 +4,4 @@ bot_functions/keys_and_codes.py
 bot_functions/gspread-creds.json
 *.bak
 .vscode
+*copy.py
