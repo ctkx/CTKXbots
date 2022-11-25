@@ -1,5 +1,11 @@
 # CTKXbots
 
+### Functionality
+
+- NFT Gated Discord Roles
+- User crypto wallet registration
+- Admin Functionality 
+
 Current commands:
 
 | Command | Use |
