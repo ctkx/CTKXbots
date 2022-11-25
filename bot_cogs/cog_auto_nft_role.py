@@ -185,7 +185,7 @@ class auto_nft_role(commands.Cog):
     def __init__(self, client):
         self.client = client
         self.checked_messages = []
-        self.parallel = False # Set to False to disable parallel processing for debugging
+        self.parallel = True # Set to False to disable parallel processing for debugging
         
     @commands.Cog.listener()
     async def on_ready(self):
