@@ -1,5 +1,26 @@
 # CTKXbots
 
+### Functionality
+
+- NFT Gated Discord Roles
+- User crypto wallet registration
+- Admin Functionality 
+
+Current commands:
+
+| Command | Use |
+|-|-|
+| `/admin`| Bot configuration |
+| `/wallet` | Register cryto wallet |
+| `/ping` | Check the bot is responding |
+
+
+### `/admin`
+
+The admin command will only respond to a user with a configured admin role. 
+The Discord Server Owner must initally run the command to set it up.
+
+Screenshots and better documentation to follow when everything is polished nicely.
 
 
 ---
